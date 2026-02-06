@@ -28,6 +28,28 @@ Applications like "Deep Research", "Manus", and "Claude Code" have gotten around
 
 **Acknowledgements: This project was primarily inspired by Claude Code, and initially was largely an attempt to see what made Claude Code general purpose, and make it even more so.**
 
+## 🧩 Profiles
+
+Use profile-based construction to select capabilities without modifying the default
+`create_deep_agent()` behavior:
+
+```python
+from deepagents import create_deep_agent_with_profile
+
+agent = create_deep_agent_with_profile(
+    profile="external_tools_only",
+    tools=[my_tool],
+)
+```
+
+Built-in profiles:
+
+- `full_agent` - Current default behavior
+- `external_tools_only` - No filesystem/shell tools, keeps planning + subagents + skills/memory middleware support
+- `no_shell` - Filesystem tools enabled, `execute` disabled
+- `no_filesystem` - No filesystem or shell tools
+- `local_subagent` - Main agent has no filesystem tools; a fixed internal local subagent handles internal file memory tasks
+
 ## 📖 Resources
 
 - **[Documentation](https://docs.langchain.com/oss/python/deepagents)** — Full documentation
