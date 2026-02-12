@@ -90,6 +90,7 @@ class DeepAgentProfileOptions:
             ``general-purpose`` subagent.
         include_local_subagent: Whether to include a fixed internal
             ``local-subagent`` with filesystem capabilities.
+        include_todo_list: Whether to include ``TodoListMiddleware``.
     """
 
     include_main_filesystem: bool = True
@@ -100,6 +101,7 @@ class DeepAgentProfileOptions:
     include_general_purpose_subagent: bool = True
     include_local_subagent: bool = False
     expose_main_filesystem_tools: bool = True
+    include_todo_list: bool = True
 
 
 PROFILE_OPTIONS: dict[DeepAgentProfile, DeepAgentProfileOptions] = {
@@ -109,6 +111,7 @@ PROFILE_OPTIONS: dict[DeepAgentProfile, DeepAgentProfileOptions] = {
         include_main_execute=False,
         include_subagent_filesystem=False,
         include_subagent_execute=False,
+        include_todo_list=False,
     ),
     "no_shell": DeepAgentProfileOptions(
         include_main_filesystem=True,
@@ -121,6 +124,7 @@ PROFILE_OPTIONS: dict[DeepAgentProfile, DeepAgentProfileOptions] = {
         include_main_execute=False,
         include_subagent_filesystem=False,
         include_subagent_execute=False,
+        include_todo_list=False,
     ),
     "local_subagent": DeepAgentProfileOptions(
         include_main_filesystem=True,
@@ -418,7 +422,9 @@ def create_deep_agent_with_profile(
     )
 
     summarization_defaults = _compute_summarization_defaults(resolved_model)
-    deepagent_middleware: list[AgentMiddleware] = [TodoListMiddleware()]
+    deepagent_middleware: list[AgentMiddleware] = []
+    if profile_options.include_todo_list:
+        deepagent_middleware.append(TodoListMiddleware())
 
     if memory is not None:
         deepagent_middleware.append(
