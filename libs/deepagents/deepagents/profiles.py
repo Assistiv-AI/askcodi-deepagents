@@ -28,6 +28,7 @@ from deepagents.graph import (
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
+from deepagents.middleware.read_skill import create_read_skill_tool
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import (
     GENERAL_PURPOSE_SUBAGENT,
@@ -335,6 +336,49 @@ def _compose_system_prompt(
     return system_prompt + "\n\n" + BASE_AGENT_PROMPT
 
 
+def _append_read_skill_tool_if_needed(
+    *,
+    tools: Sequence[BaseTool | Callable | dict[str, Any]] | None,
+    skills: list[str] | None,
+    backend: BackendProtocol | BackendFactory,
+    profile_options: DeepAgentProfileOptions,
+) -> list[BaseTool | Callable | dict[str, Any]] | None:
+    """Add read_skill for skills-enabled profiles without main filesystem tools."""
+    if not skills:
+        return list(tools) if tools is not None else None
+
+    # If main filesystem tools are exposed, read_file already exists.
+    has_main_read_file = (
+        profile_options.include_main_filesystem
+        and profile_options.expose_main_filesystem_tools
+    )
+    if has_main_read_file:
+        return list(tools) if tools is not None else None
+
+    resolved_tools = list(tools) if tools is not None else []
+    tool_names: set[str] = set()
+    for t in resolved_tools:
+        if hasattr(t, "name"):
+            name = t.name
+            if isinstance(name, str):
+                tool_names.add(name)
+            continue
+        if isinstance(t, dict):
+            name = t.get("name")
+            if isinstance(name, str):
+                tool_names.add(name)
+    if "read_skill" in tool_names:
+        return resolved_tools
+
+    resolved_tools.append(
+        create_read_skill_tool(
+            backend=backend,
+            allowed_prefixes=skills,
+        )
+    )
+    return resolved_tools
+
+
 def create_deep_agent_with_profile(
     *,
     profile: DeepAgentProfile = "full_agent",
@@ -386,10 +430,20 @@ def create_deep_agent_with_profile(
     if profile_options is None:
         profile_options = PROFILE_OPTIONS[profile]
 
+    resolved_backend: BackendProtocol | BackendFactory = (
+        backend if backend is not None else (lambda rt: StateBackend(rt))
+    )
+    resolved_tools = _append_read_skill_tool_if_needed(
+        tools=tools,
+        skills=skills,
+        backend=resolved_backend,
+        profile_options=profile_options,
+    )
+
     if profile == "full_agent" and profile_options == PROFILE_OPTIONS["full_agent"]:
         return create_deep_agent(
             model=model,
-            tools=tools,
+            tools=resolved_tools,
             system_prompt=system_prompt,
             middleware=middleware,
             subagents=subagents,
@@ -407,13 +461,10 @@ def create_deep_agent_with_profile(
         )
 
     resolved_model = _resolve_model(model)
-    resolved_backend: BackendProtocol | BackendFactory = (
-        backend if backend is not None else (lambda rt: StateBackend(rt))
-    )
 
     profile_subagents = _process_subagents_for_profile(
         model=resolved_model,
-        tools=tools,
+        tools=resolved_tools,
         subagents=subagents,
         backend=resolved_backend,
         skills=skills,
@@ -482,7 +533,7 @@ def create_deep_agent_with_profile(
     return create_agent(
         resolved_model,
         system_prompt=_compose_system_prompt(system_prompt),
-        tools=tools,
+        tools=resolved_tools,
         middleware=deepagent_middleware,
         response_format=response_format,
         context_schema=context_schema,

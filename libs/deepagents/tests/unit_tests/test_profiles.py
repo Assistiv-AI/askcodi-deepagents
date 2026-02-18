@@ -95,6 +95,22 @@ def test_no_filesystem_profile_removes_filesystem_tools() -> None:
     assert "execute" not in tools
 
 
+def test_no_filesystem_profile_with_skills_adds_read_skill_tool() -> None:
+    """Profiles with skills but no main filesystem tools should expose read_skill."""
+    model = GenericFakeChatModel(messages=iter([AIMessage(content="done")]))
+    agent = create_deep_agent_with_profile(
+        profile="no_filesystem",
+        model=model,
+        tools=[echo_tool],
+        skills=["/skills/user/"],
+    )
+    tools = _tool_names(agent)
+
+    assert "echo_tool" in tools
+    assert "read_skill" in tools
+    assert "read_file" not in tools
+
+
 def test_local_subagent_profile_has_internal_worker() -> None:
     """The local-subagent profile should expose internal worker in task choices."""
     model = GenericFakeChatModel(messages=iter([AIMessage(content="done")]))
