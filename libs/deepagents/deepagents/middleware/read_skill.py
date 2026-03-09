@@ -23,6 +23,18 @@ from deepagents.middleware.filesystem import _validate_path
 DEFAULT_READ_OFFSET = 0
 DEFAULT_READ_LIMIT = 100
 
+
+def _strip_to_allowed_prefix(file_path: str, prefixes: tuple[str, ...]) -> str:
+    """If file_path contains an allowed prefix buried in an absolute path, extract it."""
+    normalized = file_path.replace("\\", "/")
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+    for prefix in prefixes:
+        idx = normalized.find(prefix)
+        if idx > 0:  # Found prefix but not at start
+            return normalized[idx:]
+    return file_path
+
 READ_SKILL_TOOL_DESCRIPTION = """Reads a skill file from the skills library.
 
 Use this tool to open `SKILL.md` and referenced markdown files for a selected skill.
@@ -77,11 +89,14 @@ def create_read_skill_tool(
     ) -> str:
         """Synchronous wrapper for read_skill."""
         resolved_backend = _resolve_backend(backend, runtime)
+        stripped_path = _strip_to_allowed_prefix(file_path, normalized_prefixes)
         try:
-            validated_path = _validate_path(file_path, allowed_prefixes=normalized_prefixes)
+            validated_path = _validate_path(stripped_path, allowed_prefixes=normalized_prefixes)
         except ValueError as e:
             return f"Error: {e}"
-        return resolved_backend.read(validated_path, offset=offset, limit=limit)
+        # Strip leading / so non-virtual backends resolve relative to their cwd (folder root)
+        backend_path = validated_path.lstrip("/")
+        return resolved_backend.read(backend_path, offset=offset, limit=limit)
 
     async def async_read_skill(
         file_path: Annotated[str, "Absolute path to the skill file to read."],
@@ -91,11 +106,14 @@ def create_read_skill_tool(
     ) -> str:
         """Asynchronous wrapper for read_skill."""
         resolved_backend = _resolve_backend(backend, runtime)
+        stripped_path = _strip_to_allowed_prefix(file_path, normalized_prefixes)
         try:
-            validated_path = _validate_path(file_path, allowed_prefixes=normalized_prefixes)
+            validated_path = _validate_path(stripped_path, allowed_prefixes=normalized_prefixes)
         except ValueError as e:
             return f"Error: {e}"
-        return await resolved_backend.aread(validated_path, offset=offset, limit=limit)
+        # Strip leading / so non-virtual backends resolve relative to their cwd (folder root)
+        backend_path = validated_path.lstrip("/")
+        return await resolved_backend.aread(backend_path, offset=offset, limit=limit)
 
     return StructuredTool.from_function(
         name="read_skill",

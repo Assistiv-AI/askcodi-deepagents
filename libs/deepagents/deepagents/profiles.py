@@ -29,6 +29,7 @@ from deepagents.middleware.filesystem import FilesystemMiddleware
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from deepagents.middleware.read_skill import create_read_skill_tool
+from deepagents.middleware.web_fetch import create_web_fetch_tool
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import (
     GENERAL_PURPOSE_SUBAGENT,
@@ -92,6 +93,7 @@ class DeepAgentProfileOptions:
         include_local_subagent: Whether to include a fixed internal
             ``local-subagent`` with filesystem capabilities.
         include_todo_list: Whether to include ``TodoListMiddleware``.
+        include_web_fetch: Whether to include the ``web_fetch`` tool.
     """
 
     include_main_filesystem: bool = True
@@ -103,6 +105,7 @@ class DeepAgentProfileOptions:
     include_local_subagent: bool = False
     expose_main_filesystem_tools: bool = True
     include_todo_list: bool = True
+    include_web_fetch: bool = True
 
 
 PROFILE_OPTIONS: dict[DeepAgentProfile, DeepAgentProfileOptions] = {
@@ -379,6 +382,35 @@ def _append_read_skill_tool_if_needed(
     return resolved_tools
 
 
+def _append_web_fetch_tool_if_needed(
+    *,
+    tools: Sequence[BaseTool | Callable | dict[str, Any]] | None,
+    profile_options: DeepAgentProfileOptions,
+    allowed_domains: Sequence[str] | None = None,
+) -> list[BaseTool | Callable | dict[str, Any]] | None:
+    """Add ``web_fetch`` tool when the profile enables it."""
+    if not profile_options.include_web_fetch:
+        return list(tools) if tools is not None else None
+
+    resolved_tools = list(tools) if tools is not None else []
+    tool_names: set[str] = set()
+    for t in resolved_tools:
+        if hasattr(t, "name"):
+            name = t.name
+            if isinstance(name, str):
+                tool_names.add(name)
+            continue
+        if isinstance(t, dict):
+            name = t.get("name")
+            if isinstance(name, str):
+                tool_names.add(name)
+    if "web_fetch" in tool_names:
+        return resolved_tools
+
+    resolved_tools.append(create_web_fetch_tool(allowed_domains=allowed_domains))
+    return resolved_tools
+
+
 def create_deep_agent_with_profile(
     *,
     profile: DeepAgentProfile = "full_agent",
@@ -399,6 +431,7 @@ def create_deep_agent_with_profile(
     name: str | None = None,
     cache: BaseCache | None = None,
     profile_options: DeepAgentProfileOptions | None = None,
+    allowed_domains: Sequence[str] | None = None,
 ) -> CompiledStateGraph:
     """Create a deep agent using capability profiles.
 
@@ -438,6 +471,11 @@ def create_deep_agent_with_profile(
         skills=skills,
         backend=resolved_backend,
         profile_options=profile_options,
+    )
+    resolved_tools = _append_web_fetch_tool_if_needed(
+        tools=resolved_tools,
+        profile_options=profile_options,
+        allowed_domains=allowed_domains,
     )
 
     if profile == "full_agent" and profile_options == PROFILE_OPTIONS["full_agent"]:
