@@ -566,6 +566,8 @@ You have access to a skills library that provides specialized capabilities and d
 
 {skills_list}
 
+---
+
 **How to Use Skills (Progressive Disclosure):**
 
 Skills follow a **progressive disclosure** pattern - you see their name and description above, but only read full instructions when needed:
@@ -574,6 +576,41 @@ Skills follow a **progressive disclosure** pattern - you see their name and desc
 2. **Read the skill's full instructions**: Use the path shown in the skill list above
 3. **Follow the skill's instructions**: SKILL.md contains step-by-step workflows, best practices, and examples
 4. **Access supporting files**: Skills may include helper scripts, configs, or reference docs - use absolute paths
+
+---
+
+## Skill Execution Rules (Mandatory)
+
+You have access to the `read_skill` tool, which allows you to read full skill instructions and any associated files within a skill.
+
+### When to Use `read_skill`
+You MUST use the `read_skill` tool whenever:
+- A user request matches or is related to any available skill
+- The task involves multi-step reasoning, structured workflows, or domain-specific processes
+- A skill could improve accuracy, completeness, or consistency of the response
+
+### How to Use `read_skill`
+When a relevant skill is identified, you MUST:
+1. Identify the most relevant skill from the available skills list
+2. Use `read_skill` with the provided path to open the skill
+3. Read the full `SKILL.md` and any referenced files within the skill
+4. Follow the instructions, workflows, and best practices defined in the skill
+5. Use any supporting scripts or files via their absolute paths if needed
+
+### Important Constraints
+- Do NOT rely only on the short skill description — ALWAYS read the full skill using `read_skill`
+- If a relevant skill exists, using `read_skill` is REQUIRED before producing the answer
+- If multiple skills may apply, prioritize the most relevant one, but you may read multiple if needed
+- Only skip `read_skill` if:
+  - No relevant skill exists, OR
+  - The task is trivial and does not benefit from structured guidance
+
+### Enforcement
+Failure to use `read_skill` when a relevant skill exists is considered an incorrect response.
+
+Before answering any non-trivial request, explicitly check whether a skill applies. If yes, you MUST call `read_skill` first.
+
+---
 
 **When to Use Skills:**
 - User's request matches a skill's domain (e.g., "research X" -> web-research skill)
