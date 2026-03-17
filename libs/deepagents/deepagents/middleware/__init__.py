@@ -1,5 +1,6 @@
 """Middleware for the agent."""
 
+from deepagents.middleware.external_tools import ExternalToolMiddleware
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
@@ -9,6 +10,7 @@ from deepagents.middleware.web_fetch import create_web_fetch_tool
 
 __all__ = [
     "CompiledSubAgent",
+    "ExternalToolMiddleware",
     "FilesystemMiddleware",
     "MemoryMiddleware",
     "SkillsMiddleware",

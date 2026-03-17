@@ -64,6 +64,7 @@ def create_deep_agent(
     store: BaseStore | None = None,
     backend: BackendProtocol | BackendFactory | None = None,
     interrupt_on: dict[str, bool | InterruptOnConfig] | None = None,
+    hitl_middleware: AgentMiddleware | None = None,
     debug: bool = False,
     name: str | None = None,
     cache: BaseCache | None = None,
@@ -186,7 +187,9 @@ def create_deep_agent(
     ]
     if skills is not None:
         gp_middleware.append(SkillsMiddleware(backend=backend, sources=skills))
-    if interrupt_on is not None:
+    if hitl_middleware is not None:
+        gp_middleware.append(hitl_middleware)
+    elif interrupt_on is not None:
         gp_middleware.append(HumanInTheLoopMiddleware(interrupt_on=interrupt_on))
 
     general_purpose_spec: SubAgent = {
@@ -228,6 +231,8 @@ def create_deep_agent(
             if subagent_skills:
                 subagent_middleware.append(SkillsMiddleware(backend=backend, sources=subagent_skills))
             subagent_middleware.extend(spec.get("middleware", []))
+            if hitl_middleware is not None:
+                subagent_middleware.append(hitl_middleware)
 
             processed_spec: SubAgent = {
                 **spec,
@@ -269,7 +274,9 @@ def create_deep_agent(
     )
     if middleware:
         deepagent_middleware.extend(middleware)
-    if interrupt_on is not None:
+    if hitl_middleware is not None:
+        deepagent_middleware.append(hitl_middleware)
+    elif interrupt_on is not None:
         deepagent_middleware.append(HumanInTheLoopMiddleware(interrupt_on=interrupt_on))
 
     # Combine system_prompt with BASE_AGENT_PROMPT

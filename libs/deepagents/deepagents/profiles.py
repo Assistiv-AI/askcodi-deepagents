@@ -256,6 +256,7 @@ def _process_subagents_for_profile(
     backend: BackendProtocol | BackendFactory,
     skills: list[str] | None,
     interrupt_on: dict[str, bool | InterruptOnConfig] | None,
+    hitl_middleware: AgentMiddleware | None = None,
     profile_options: DeepAgentProfileOptions,
 ) -> list[SubAgent | CompiledSubAgent]:
     """Build profile-managed subagent list for ``SubAgentMiddleware``."""
@@ -269,7 +270,9 @@ def _process_subagents_for_profile(
             include_execute=profile_options.include_subagent_execute,
             skills_sources=skills,
         )
-        if interrupt_on is not None:
+        if hitl_middleware is not None:
+            general_purpose_middleware.append(hitl_middleware)
+        elif interrupt_on is not None:
             general_purpose_middleware.append(
                 HumanInTheLoopMiddleware(interrupt_on=interrupt_on)
             )
@@ -300,6 +303,8 @@ def _process_subagents_for_profile(
             skills_sources=spec.get("skills"),
         )
         subagent_middleware.extend(spec.get("middleware", []))
+        if hitl_middleware is not None:
+            subagent_middleware.append(hitl_middleware)
 
         processed_subagents.append(
             {
@@ -427,6 +432,7 @@ def create_deep_agent_with_profile(
     store: BaseStore | None = None,
     backend: BackendProtocol | BackendFactory | None = None,
     interrupt_on: dict[str, bool | InterruptOnConfig] | None = None,
+    hitl_middleware: AgentMiddleware | None = None,
     debug: bool = False,
     name: str | None = None,
     cache: BaseCache | None = None,
@@ -493,6 +499,7 @@ def create_deep_agent_with_profile(
             store=store,
             backend=backend,
             interrupt_on=interrupt_on,
+            hitl_middleware=hitl_middleware,
             debug=debug,
             name=name,
             cache=cache,
@@ -507,6 +514,7 @@ def create_deep_agent_with_profile(
         backend=resolved_backend,
         skills=skills,
         interrupt_on=interrupt_on,
+        hitl_middleware=hitl_middleware,
         profile_options=profile_options,
     )
 
@@ -563,7 +571,9 @@ def create_deep_agent_with_profile(
     if middleware:
         deepagent_middleware.extend(middleware)
 
-    if interrupt_on is not None:
+    if hitl_middleware is not None:
+        deepagent_middleware.append(hitl_middleware)
+    elif interrupt_on is not None:
         deepagent_middleware.append(
             HumanInTheLoopMiddleware(interrupt_on=interrupt_on)
         )
